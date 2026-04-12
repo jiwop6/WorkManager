@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>근무 & 급여 매니저 v29</title>
+    <title관리표</title>
     <style>
         :root { 
             --primary: #1e272e; --accent: #d2dae2; --bg: #0f1418; --wood: #3d2b1f; 
@@ -12,7 +12,7 @@
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: var(--text-main); padding: 15px; font-size: 13px; margin: 0; }
         .container { max-width: 1300px; margin: 0 auto; background: #161b22; padding: 25px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); border: 1px solid var(--border); position: relative; }
         .header-fixed-section { position: sticky; top: 0; z-index: 1100; background: #161b22; padding: 10px 0; margin: -15px -15px 0 -15px; padding-left: 15px; padding-right: 15px; border-bottom: 2px solid var(--primary); }
-        .month-nav { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px; background: var(--primary); padding: 8px; border-radius: 8px; border: 1px solid var(--border); }
+        .month-nav { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px; background: var(--primary); padding: 8px; border-radius: 8px; border: 1px solid var(--border); flex-wrap: wrap; }
         .nav-btn { background: var(--gray); color: white; border: none; padding: 5px 12px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px; }
         #monthPicker { background: #0d1117; color: white; border: 1px solid var(--border); padding: 5px 10px; border-radius: 5px; font-weight: bold; }
         .summary-dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 10px; }
@@ -38,6 +38,7 @@
         .pay-detail-box { display: none; position: absolute; z-index: 1200; background: #2f3542; border: 1px solid var(--accent); padding: 12px; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 170px; text-align: left; right: 0; top: 110%; line-height: 1.8; font-size: 12px; color: #f1f2f6; }
         .weekend td { background: #1c1414 !important; color: #ff7675; }
         .collapsed-row { display: none; }
+        .negative { color: var(--danger); }
     </style>
 </head>
 <body>
@@ -54,7 +55,7 @@
                 연봉 <input type="number" id="annualSalary" style="width:70px; background:#0d1117; color:white; border:1px solid var(--border); padding:4px;" oninput="saveSalary()"> 만원
                 <span id="hrDisplayArea" style="margin-left:10px; font-size:11px; color:var(--success); font-weight:bold;">(시급: <span id="hrDisplay">0</span>원)</span>
             </div>
-            <div style="margin-left:auto; font-size:11px; color:var(--success); font-weight:bold; opacity: 0.8;">✓ 정밀 계산 모드 (v29)</div>
+            <div style="margin-left:auto; font-size:11px; color:var(--success); font-weight:bold; opacity: 0.8;">✓ 정밀 계산 모드 (v30)</div>
         </div>
 
         <div class="summary-dashboard">
@@ -64,7 +65,7 @@
             </div>
             <div class="summary-card">
                 <h4>총 연장 / 심야</h4>
-                <div class="value"><span id="totalOver" style="color:var(--break)">0h</span> / <span id="totalNight" style="color:var(--night)">0h</span></div>
+                <div class="value"><span id="totalOver" style="color:var(--break)">0h 0m</span> / <span id="totalNight" style="color:var(--night)">0h 0m</span></div>
             </div>
             <div class="summary-card">
                 <h4>잔여 가용 시간 (Max)</h4>
@@ -120,46 +121,85 @@
     let dayData = {};
     let hourlyRate = 0;
 
+    /* ─── 유틸리티 ─── */
+    function timeToMins(t) {
+        if (!t || typeof t !== 'string') return null;
+        // "HH:MM" 형식만 허용
+        const match = t.trim().match(/^(\d{1,2}):(\d{2})$/);
+        if (!match) return null;
+        return parseInt(match[1]) * 60 + parseInt(match[2]);
+    }
+
+    function fmtHM(mins) {
+        if (mins == null || isNaN(mins)) return '0h 0m';
+        const sign = mins < 0 ? '-' : '';
+        const abs = Math.abs(mins);
+        return `${sign}${Math.floor(abs / 60)}h ${abs % 60}m`;
+    }
+
+    function autoFormat(input) {
+        let v = input.value.replace(/\D/g, '');
+        if (v.length === 3) {
+            // "830" → "08:30"  /  "930" → "09:30"
+            v = '0' + v;
+        }
+        if (v.length >= 4) {
+            input.value = v.substring(0, 2) + ':' + v.substring(2, 4);
+        }
+    }
+
+    /* ─── 네비게이션 ─── */
     function goToday() {
         const now = new Date();
-        const y = now.getFullYear();
-        const m = String(now.getMonth() + 1).padStart(2, '0');
-        document.getElementById('monthPicker').value = `${y}-${m}`;
+        document.getElementById('monthPicker').value =
+            `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         initTable();
     }
 
     function changeMonth(offset) {
         const picker = document.getElementById('monthPicker');
         let [y, m] = picker.value.split('-').map(Number);
-        let date = new Date(y, (m - 1) + offset, 1);
+        const date = new Date(y, (m - 1) + offset, 1);
         picker.value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         initTable();
     }
 
-    function togglePayVisibility() { if (!hourlyRate) { alert("정보 설정을 해주세요."); return; } document.getElementById('totalPay').classList.toggle('salary-masked'); }
-    function toggleSettings() { const a = document.getElementById('settingsArea'); a.style.display = a.style.display === 'none' ? 'inline-block' : 'none'; }
-    
-    function saveSalary() { 
-        const s = document.getElementById('annualSalary').value; 
-        if(s && s > 0) { 
-            hourlyRate = Math.floor((s * 10000) / 12 / 209); 
-            document.getElementById('hrDisplay').innerText = hourlyRate.toLocaleString();
-            localStorage.setItem('userSalary_Master', s); 
-            updateAllCalculations(); 
-        } 
+    /* ─── 설정 ─── */
+    function togglePayVisibility() {
+        if (!hourlyRate) { alert("⚙️ 설정에서 연봉을 입력해주세요."); return; }
+        document.getElementById('totalPay').classList.toggle('salary-masked');
     }
 
+    function toggleSettings() {
+        const a = document.getElementById('settingsArea');
+        a.style.display = a.style.display === 'none' ? 'inline-block' : 'none';
+    }
+
+    function saveSalary() {
+        const s = parseFloat(document.getElementById('annualSalary').value);
+        if (s && s > 0) {
+            hourlyRate = Math.floor((s * 10000) / 12 / 209);
+            document.getElementById('hrDisplay').innerText = hourlyRate.toLocaleString();
+            localStorage.setItem('userSalary_Master', s);
+            updateAllCalculations();
+        }
+    }
+
+    /* ─── 테이블 초기화 ─── */
     function initTable() {
         const picker = document.getElementById('monthPicker').value;
+        if (!picker) return;
         const [year, month] = picker.split('-').map(Number);
         const lastDay = new Date(year, month, 0).getDate();
         const tbody = document.getElementById('workTableBody');
         tbody.innerHTML = '';
+
         const saved = JSON.parse(localStorage.getItem(`workData_v18_${picker}`)) || {};
         dayData = saved.dayData || {};
+
         const salary = localStorage.getItem('userSalary_Master');
-        if(salary) { 
-            document.getElementById('annualSalary').value = salary; 
+        if (salary) {
+            document.getElementById('annualSalary').value = salary;
             hourlyRate = Math.floor((salary * 10000) / 12 / 209);
             document.getElementById('hrDisplay').innerText = hourlyRate.toLocaleString();
         }
@@ -167,131 +207,410 @@
         let currentWeek = -1;
         for (let d = 1; d <= lastDay; d++) {
             const dateObj = new Date(year, month - 1, d);
-            const weekNum = Math.ceil((d + new Date(year, month-1, 1).getDay()) / 7);
+            const firstDayOfWeek = new Date(year, month - 1, 1).getDay();
+            const weekNum = Math.ceil((d + firstDayOfWeek) / 7);
             const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
             const dayOfWeek = ['일','월','화','수','목','금','토'][dateObj.getDay()];
+
             if (weekNum !== currentWeek) {
                 const weekRow = document.createElement('tr');
                 weekRow.className = 'week-group-header';
-                weekRow.innerHTML = `<td colspan="9" class="week-title" onclick="toggleWeek(${weekNum}, this.parentElement)">${weekNum}주차</td><td class="week-total-cell"><span id="week-total-time-${weekNum}">0h 0m</span> <button class="week-pay-btn" onclick="toggleWeeklyPayDetail(${weekNum}, event)">!!</button><div id="weekPayBox-${weekNum}" class="pay-detail-box"></div></td>`;
+                weekRow.innerHTML = `
+                    <td colspan="9" class="week-title" onclick="toggleWeek(${weekNum}, this.parentElement)">${weekNum}주차</td>
+                    <td class="week-total-cell">
+                        <span id="week-total-time-${weekNum}">0h 0m</span>
+                        <button class="week-pay-btn" onclick="toggleWeeklyPayDetail(${weekNum}, event)">!!</button>
+                        <div id="weekPayBox-${weekNum}" class="pay-detail-box"></div>
+                    </td>`;
                 tbody.appendChild(weekRow);
                 currentWeek = weekNum;
             }
+
             const rowSaved = saved[d] || { in: '', out: '' };
             const tr = document.createElement('tr');
             tr.className = `week-row-${weekNum}`;
+            tr.dataset.day = d;  // [v30] 날짜를 data attribute로 저장
             if (isWeekend) tr.classList.add('weekend');
-            tr.innerHTML = `<td>${d}(${dayOfWeek})</td><td><input type="text" class="time-input in-time" value="${rowSaved.in}" oninput="autoFormat(this); autoSaveRow(${d});"></td><td><input type="text" class="time-input out-time" value="${rowSaved.out}" oninput="autoFormat(this); autoSaveRow(${d});"></td><td><button onclick="openBreakModal(${d})" style="background:none; border:1px solid var(--border); color:var(--text-sub); cursor:pointer; border-radius:4px;">⚙️</button></td><td class="res-break">0분</td><td class="res-over">0h</td><td class="res-night">0h</td><td style="font-weight:bold"><span class="res-final" data-mins="0">0h 0m</span></td><td><div class="pay-container" style="position:relative;"><button class="btn-plus" onclick="togglePayDetail(${d})">+</button><div id="payBox-${d}" class="pay-detail-box"></div></div></td><td style="background:rgba(255,255,255,0.02);"></td>`;
+
+            tr.innerHTML = `
+                <td>${d}(${dayOfWeek})</td>
+                <td><input type="text" class="time-input in-time" value="${rowSaved.in}" oninput="autoFormat(this); autoSaveRow(${d});"></td>
+                <td><input type="text" class="time-input out-time" value="${rowSaved.out}" oninput="autoFormat(this); autoSaveRow(${d});"></td>
+                <td><button onclick="openBreakModal(${d})" style="background:none; border:1px solid var(--border); color:var(--text-sub); cursor:pointer; border-radius:4px;">⚙️</button></td>
+                <td class="res-break">0h 0m</td>
+                <td class="res-over">0h 0m</td>
+                <td class="res-night">0h 0m</td>
+                <td style="font-weight:bold"><span class="res-final" data-mins="0" data-over="0" data-night="0">0h 0m</span></td>
+                <td>
+                    <div class="pay-container" style="position:relative;">
+                        <button class="btn-plus" onclick="togglePayDetail(${d})">+</button>
+                        <div id="payBox-${d}" class="pay-detail-box"></div>
+                    </div>
+                </td>
+                <td style="background:rgba(255,255,255,0.02);"></td>`;
             tbody.appendChild(tr);
             calculateRow(tr);
         }
-        adjustHeaderPosition(); calculatePredictions();
+        adjustHeaderPosition();
+        // [v30 FIX] calculateTotal에서 calculatePredictions을 호출하므로 별도 호출 불필요
+        // (기존: calculatePredictions()를 인자 없이 호출 → NaN 버그)
     }
 
-    function adjustHeaderPosition() { const h = document.getElementById('fixedHeader').offsetHeight; document.querySelectorAll('thead th').forEach(th => { th.style.top = h + 'px'; }); }
+    function adjustHeaderPosition() {
+        const h = document.getElementById('fixedHeader').offsetHeight;
+        document.querySelectorAll('thead th').forEach(th => { th.style.top = h + 'px'; });
+    }
 
+    /* ─── 행 계산 (핵심 로직) ─── */
     function calculateRow(row) {
-        const inM = timeToMins(row.querySelector('.in-time').value);
-        const outM = timeToMins(row.querySelector('.out-time').value);
-        const day = Array.from(document.querySelectorAll('#workTableBody tr:not(.week-group-header)')).indexOf(row) + 1;
+        const inVal = row.querySelector('.in-time').value;
+        const outVal = row.querySelector('.out-time').value;
+        let inM = timeToMins(inVal);
+        let outM = timeToMins(outVal);
+        const day = parseInt(row.dataset.day);  // [v30] indexOf 대신 data attribute 사용
         const isWeekend = row.classList.contains('weekend');
+
         let workM = 0, breakM = 0, overM = 0, nightM = 0;
-        
+
         if (inM !== null && outM !== null) {
-            workM = outM - inM;
-            // [정밀 수정] 점심시간(12:00~13:00) 1분 단위 정밀 공제
-            if (!isWeekend) {
-                const overlapS = Math.max(inM, 720);
-                const overlapE = Math.min(outM, 780);
-                if (overlapE > overlapS) breakM = (overlapE - overlapS);
+            // [v30 FIX] 익일 퇴근 (야간근무) 지원
+            if (outM <= inM) {
+                outM += 1440; // +24시간
             }
-            if(dayData[day]) dayData[day].forEach(b => { const s = timeToMins(b.start), e = timeToMins(b.end); if (e > s) breakM += (e - s); });
-            workM = Math.max(0, workM - breakM);
-            if (workM > 480) overM = workM - 480;
-            const overlapNightS = Math.max(inM, 1320), overlapNightE = Math.min(outM, 1800);
-            if (overlapNightE > overlapNightS) nightM = (overlapNightE - overlapNightS);
+
+            const totalSpan = outM - inM;
+
+            // ── 휴게시간 계산 (중복 방지 로직 포함) ──
+            // 휴게 구간들을 배열로 수집
+            let breakRanges = [];
+
+            // 평일 점심시간 자동 공제 (12:00~13:00)
+            if (!isWeekend) {
+                const lunchStart = Math.max(inM, 720);  // 12:00
+                const lunchEnd = Math.min(outM, 780);    // 13:00
+                if (lunchEnd > lunchStart) {
+                    breakRanges.push({ s: lunchStart, e: lunchEnd });
+                }
+            }
+
+            // 수동 추가 휴게
+            if (dayData[day]) {
+                dayData[day].forEach(b => {
+                    const bs = timeToMins(b.start);
+                    const be = timeToMins(b.end);
+                    if (bs !== null && be !== null && be > bs) {
+                        breakRanges.push({ s: bs, e: be });
+                    }
+                });
+            }
+
+            // [v30 FIX] 겹치는 휴게 구간 병합 (중복 공제 방지)
+            breakM = mergeAndSum(breakRanges);
+
+            // 실 근무시간
+            workM = Math.max(0, totalSpan - breakM);
+
+            // 연장근무 (8시간 초과)
+            if (workM > 480) {
+                overM = workM - 480;
+            }
+
+            // [v30 FIX] 심야근무 (22:00~06:00) - 휴게시간 제외한 실제 심야 근무
+            nightM = calcNightMins(inM, outM, breakRanges);
         }
-        
-        let bP = 0, oP = 0, nP = Math.floor((nightM/60)*hourlyRate*0.5);
-        if (!isWeekend) { bP = Math.floor((workM/60)*hourlyRate); oP = Math.floor((overM/60)*hourlyRate*0.5); }
-        else { const hB = Math.min(workM, 480); bP = Math.floor((hB/60)*hourlyRate*1.5); oP = Math.floor((Math.max(0, workM-480)/60)*hourlyRate*2.0); }
-        
-        let tot = bP + oP + nP;
-        row.querySelector('.res-break').innerText = `${Math.floor(breakM/60)}h ${breakM%60}m`;
-        row.querySelector('.res-over').innerText = `${Math.floor(overM/60)}h ${overM%60}m`;
-        row.querySelector('.res-night').innerText = `${Math.floor(nightM/60)}h ${nightM%60}m`;
-        row.querySelector('.res-final').innerText = `${Math.floor(workM/60)}h ${workM%60}m`;
-        row.querySelector('.res-final').dataset.mins = workM;
+
+        // ── 급여 계산 ──
+        let bP = 0, oP = 0, nP = 0;
+        nP = Math.floor((nightM / 60) * hourlyRate * 0.5);
+
+        if (!isWeekend) {
+            bP = Math.floor((workM / 60) * hourlyRate);
+            oP = Math.floor((overM / 60) * hourlyRate * 0.5);
+        } else {
+            const baseHours = Math.min(workM, 480);
+            bP = Math.floor((baseHours / 60) * hourlyRate * 1.5);
+            oP = Math.floor((Math.max(0, workM - 480) / 60) * hourlyRate * 2.0);
+        }
+
+        const tot = bP + oP + nP;
+
+        // ── 화면 업데이트 ──
+        row.querySelector('.res-break').innerText = fmtHM(breakM);
+        row.querySelector('.res-over').innerText = fmtHM(overM);
+        row.querySelector('.res-night').innerText = fmtHM(nightM);
+
+        const finalEl = row.querySelector('.res-final');
+        finalEl.innerText = fmtHM(workM);
+        // [v30 FIX] 숫자 데이터를 data attribute에 정확히 저장 (문자열 파싱 제거)
+        finalEl.dataset.mins = workM;
+        finalEl.dataset.over = overM;
+        finalEl.dataset.night = nightM;
+
         const pb = document.getElementById(`payBox-${day}`);
-        if(pb) { pb.innerHTML = `기본: ${bP.toLocaleString()}원<br>연장: ${oP.toLocaleString()}원<br>심야: ${nP.toLocaleString()}원<hr style="border:0; border-top:1px dashed #555;"><strong>총합: ${tot.toLocaleString()}원</strong>`; pb.dataset.total = tot; pb.dataset.bP = bP; pb.dataset.oP = oP; pb.dataset.nP = nP; }
+        if (pb) {
+            pb.innerHTML = `기본: ${bP.toLocaleString()}원<br>연장: ${oP.toLocaleString()}원<br>심야: ${nP.toLocaleString()}원<hr style="border:0; border-top:1px dashed #555;"><strong>총합: ${tot.toLocaleString()}원</strong>`;
+            pb.dataset.total = tot;
+            pb.dataset.bP = bP;
+            pb.dataset.oP = oP;
+            pb.dataset.nP = nP;
+        }
+
         calculateTotal();
     }
 
+    /* ─── [v30 NEW] 휴게 구간 병합 후 합산 ─── */
+    function mergeAndSum(ranges) {
+        if (ranges.length === 0) return 0;
+        // 시작시간 기준 정렬
+        ranges.sort((a, b) => a.s - b.s);
+        const merged = [{ s: ranges[0].s, e: ranges[0].e }];
+        for (let i = 1; i < ranges.length; i++) {
+            const last = merged[merged.length - 1];
+            if (ranges[i].s <= last.e) {
+                // 겹침 → 병합
+                last.e = Math.max(last.e, ranges[i].e);
+            } else {
+                merged.push({ s: ranges[i].s, e: ranges[i].e });
+            }
+        }
+        let total = 0;
+        merged.forEach(r => { total += (r.e - r.s); });
+        return total;
+    }
+
+    /* ─── [v30 NEW] 심야시간 정밀 계산 (22:00~06:00, 휴게 제외) ─── */
+    function calcNightMins(inM, outM, breakRanges) {
+        // 심야 구간: 22:00(1320)~30:00(1740=익일 06:00)
+        // 당일 00:00~06:00도 심야이므로: 0~360도 포함
+        let nightTotal = 0;
+
+        // 심야 구간 정의 (분 단위, 연속 타임라인 기준)
+        const nightZones = [];
+        // 자정 전 심야: 22:00 ~ 24:00 (또는 퇴근시간)
+        if (outM > 1320) {
+            nightZones.push({ s: Math.max(inM, 1320), e: Math.min(outM, 1440) });
+        }
+        // 자정 후 심야: 24:00(0:00) ~ 30:00(6:00)
+        if (outM > 1440) {
+            nightZones.push({ s: Math.max(inM, 1440), e: Math.min(outM, 1800) });
+        }
+
+        nightZones.forEach(nz => {
+            if (nz.e <= nz.s) return;
+            let mins = nz.e - nz.s;
+            // 이 심야 구간과 겹치는 휴게시간 차감
+            breakRanges.forEach(br => {
+                const overlapS = Math.max(nz.s, br.s);
+                const overlapE = Math.min(nz.e, br.e);
+                if (overlapE > overlapS) {
+                    mins -= (overlapE - overlapS);
+                }
+            });
+            nightTotal += Math.max(0, mins);
+        });
+
+        return nightTotal;
+    }
+
+    /* ─── 전체 합산 ─── */
     function calculateTotal() {
-        let w=0, p=0, o=0, n=0; let weekMins = {}, weekPays = {};
-        document.querySelectorAll('.res-final').forEach((el) => {
-            const mins = parseInt(el.dataset.mins || 0); w += mins;
+        let totalWorkMins = 0, totalPay = 0, totalOverMins = 0, totalNightMins = 0;
+        let weekMins = {}, weekPays = {};
+
+        document.querySelectorAll('.res-final').forEach(el => {
+            const mins = parseInt(el.dataset.mins) || 0;
+            const over = parseInt(el.dataset.over) || 0;    // [v30 FIX] data attribute에서 직접 읽기
+            const night = parseInt(el.dataset.night) || 0;   // [v30 FIX] 문자열 파싱 제거
+
+            totalWorkMins += mins;
+            totalOverMins += over;
+            totalNightMins += night;
+
             const row = el.closest('tr');
             const weekMatch = Array.from(row.classList).find(c => c.startsWith('week-row-'));
             if (weekMatch) {
                 const wNum = weekMatch.split('-')[2];
                 weekMins[wNum] = (weekMins[wNum] || 0) + mins;
-                const rowIdx = Array.from(document.querySelectorAll('#workTableBody tr:not(.week-group-header)')).indexOf(row);
-                const pb = document.getElementById(`payBox-${rowIdx+1}`);
-                if (pb && pb.dataset.total) { if (!weekPays[wNum]) weekPays[wNum] = { b:0, o:0, n:0, t:0 }; weekPays[wNum].b += parseInt(pb.dataset.bP || 0); weekPays[wNum].o += parseInt(pb.dataset.oP || 0); weekPays[wNum].n += parseInt(pb.dataset.nP || 0); weekPays[wNum].t += parseInt(pb.dataset.total || 0); }
+
+                const day = parseInt(row.dataset.day);
+                const pb = document.getElementById(`payBox-${day}`);
+                if (pb && pb.dataset.total) {
+                    if (!weekPays[wNum]) weekPays[wNum] = { b: 0, o: 0, n: 0, t: 0 };
+                    weekPays[wNum].b += parseInt(pb.dataset.bP) || 0;
+                    weekPays[wNum].o += parseInt(pb.dataset.oP) || 0;
+                    weekPays[wNum].n += parseInt(pb.dataset.nP) || 0;
+                    weekPays[wNum].t += parseInt(pb.dataset.total) || 0;
+                }
             }
-            o += (timeToMins(row.querySelector('.res-over').innerText.replace('h',':').replace('m','')) || 0);
-            n += (timeToMins(row.querySelector('.res-night').innerText.replace('h',':').replace('m','')) || 0);
         });
 
-        // 회사 툴 싱크: 총 한도 222시간 (87:43 + 134:17)
-        const MAX_LIMIT_MINS = 222 * 60;
-        const remMins = MAX_LIMIT_MINS - w;
+        // 주간 합계 표시 & 총 급여 합산
+        for (const wNum in weekMins) {
+            const wtEl = document.getElementById(`week-total-time-${wNum}`);
+            if (wtEl) wtEl.innerText = fmtHM(weekMins[wNum]);
 
-        for (let wNum in weekMins) { document.getElementById(`week-total-time-${wNum}`).innerText = `${Math.floor(weekMins[wNum]/60)}h ${weekMins[wNum]%60}m`; const wp = weekPays[wNum]; if (wp) document.getElementById(`weekPayBox-${wNum}`).innerHTML = `주간 총액: <strong>${wp.t.toLocaleString()}원</strong><br><small>(기본:${wp.b.toLocaleString()} / 연장:${wp.o.toLocaleString()} / 심야:${wp.n.toLocaleString()})</small>`; if (wp) p += wp.t; }
-        
-        document.getElementById('totalWork').innerText = `${Math.floor(w/60)}시간 ${w%60}분`;
-        document.getElementById('totalOver').innerText = Math.floor(o/60)+"h";
-        document.getElementById('totalNight').innerText = Math.floor(n/60)+"h";
-        document.getElementById('totalPay').innerText = p.toLocaleString() + "원";
-        document.getElementById('remainingLimit').innerText = `${Math.floor(remMins/60)}h ${Math.abs(remMins%60)}m`;
-        
+            const wp = weekPays[wNum];
+            if (wp) {
+                totalPay += wp.t;
+                const wpBox = document.getElementById(`weekPayBox-${wNum}`);
+                if (wpBox) {
+                    wpBox.innerHTML = `주간 총액: <strong>${wp.t.toLocaleString()}원</strong><br><small>(기본:${wp.b.toLocaleString()} / 연장:${wp.o.toLocaleString()} / 심야:${wp.n.toLocaleString()})</small>`;
+                }
+            }
+        }
+
+        // 총 한도: 222시간 (87:43 + 134:17)
+        const MAX_LIMIT_MINS = 222 * 60;
+        const remMins = MAX_LIMIT_MINS - totalWorkMins;
+
+        document.getElementById('totalWork').innerText =
+            `${Math.floor(totalWorkMins / 60)}시간 ${totalWorkMins % 60}분`;
+        // [v30 FIX] 연장/심야 분 단위까지 표시
+        document.getElementById('totalOver').innerText = fmtHM(totalOverMins);
+        document.getElementById('totalNight').innerText = fmtHM(totalNightMins);
+        document.getElementById('totalPay').innerText = totalPay.toLocaleString() + '원';
+
+        // [v30 FIX] 잔여시간 음수 처리
+        const remEl = document.getElementById('remainingLimit');
+        remEl.innerText = fmtHM(remMins);
+        if (remMins < 0) {
+            remEl.classList.add('negative');
+        } else {
+            remEl.classList.remove('negative');
+        }
+
         calculatePredictions(remMins);
     }
 
-    function timeToMins(t) { if (!t || !t.includes(':')) return null; const [h, m] = t.split(':').map(Number); return h * 60 + m; }
-    function autoFormat(i) { let v = i.value.replace(/\D/g, ''); if (v.length >= 4) i.value = v.substring(0, 2) + ':' + v.substring(2, 4); }
-    function toggleWeek(w, h) { h.classList.toggle('week-collapsed'); document.querySelectorAll(`.week-row-${w}`).forEach(r => r.classList.toggle('collapsed-row')); }
-    function updateAllCalculations() { document.querySelectorAll('#workTableBody tr:not(.week-group-header)').forEach(row => calculateRow(row)); }
-    function autoSaveRow(d) { const p = document.getElementById('monthPicker').value; const row = document.querySelectorAll('#workTableBody tr:not(.week-group-header)')[d-1]; let full = JSON.parse(localStorage.getItem(`workData_v18_${p}`)) || { dayData: dayData }; full[d] = { in: row.querySelector('.in-time').value, out: row.querySelector('.out-time').value }; full.dayData = dayData; localStorage.setItem(`workData_v18_${p}`, JSON.stringify(full)); calculateRow(row); }
-    function toggleWeeklyPayDetail(w, e) { e.stopPropagation(); if(!hourlyRate){alert("정보 설정을 해주세요."); return;} const b = document.getElementById(`weekPayBox-${w}`); const v = b.style.display==='block'; document.querySelectorAll('.pay-detail-box').forEach(x=>x.style.display='none'); b.style.display = v?'none':'block'; }
-    function togglePayDetail(d) { if(!hourlyRate){alert("정보 설정을 해주세요."); return;} const b = document.getElementById(`payBox-${d}`); const v = b.style.display==='block'; document.querySelectorAll('.pay-detail-box').forEach(x=>x.style.display='none'); b.style.display = v?'none':'block'; }
-    
+    /* ─── 예측 (남은 일수 기준 일 평균) ─── */
     function calculatePredictions(remMins) {
+        if (remMins == null || isNaN(remMins)) return;  // [v30 FIX] 인자 없이 호출 시 안전 처리
+
         const picker = document.getElementById('monthPicker').value;
-        const [y, m] = picker.split('-').map(Number); const ld = new Date(y, m, 0).getDate();
-        let rw=0, rt=0;
+        const [y, m] = picker.split('-').map(Number);
+        const lastDay = new Date(y, m, 0).getDate();
         const now = new Date();
         const todayStr = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
+
+        let remainWeekdays = 0, remainAllDays = 0;
+
         if (picker === todayStr) {
             const todayNum = now.getDate();
-            for (let d=1; d<=ld; d++) {
-                const c = new Date(y, m-1, d); if(d >= todayNum) { rt++; if(c.getDay()!==0 && c.getDay()!==6) rw++; }
+            for (let d = todayNum; d <= lastDay; d++) {
+                const c = new Date(y, m - 1, d);
+                remainAllDays++;
+                if (c.getDay() !== 0 && c.getDay() !== 6) remainWeekdays++;
             }
         }
-        document.getElementById('avgWeekday').innerText = rw>0 ? `${Math.floor((remMins/rw)/60)}h ${Math.round((remMins/rw)%60)}m` : "0h 0m";
-        document.getElementById('avgAllDays').innerText = rt>0 ? `${Math.floor((remMins/rt)/60)}h ${Math.round((remMins/rt)%60)}m` : "0h 0m";
-    }
-    
-    let editingDay = null;
-    function openBreakModal(d) { editingDay=d; const l=document.getElementById('breakInputList'); l.innerHTML=''; if(!dayData[d])dayData[d]=[]; dayData[d].forEach(b=>addBreakRow(b.start,b.end)); if(dayData[d].length===0)addBreakRow(); document.getElementById('breakModal').style.display='block'; }
-    function addBreakRow(s='',e='') { const d=document.createElement('div'); d.style.marginBottom="5px"; d.innerHTML=`<input type="text" class="time-input b-s" value="${s}" oninput="autoFormat(this)"> ~ <input type="text" class="time-input b-e" value="${e}" oninput="autoFormat(this)"> <button onclick="this.parentElement.remove()" style="color:red; border:none; background:none; cursor:pointer; font-weight:bold;">X</button>`; document.getElementById('breakInputList').appendChild(d); }
-    function closeModal() { document.getElementById('breakModal').style.display='none'; }
-    function applyBreaks() { const ds=document.querySelectorAll('#breakInputList div'); dayData[editingDay]=[]; ds.forEach(d=>{const s=d.querySelector('.b-s').value, e=d.querySelector('.b-e').value; if(s&&e)dayData[editingDay].push({start:s,end:e});}); closeModal(); autoSaveRow(editingDay); }
 
+        const avgWDEl = document.getElementById('avgWeekday');
+        const avgAllEl = document.getElementById('avgAllDays');
+
+        if (remainWeekdays > 0 && remMins > 0) {
+            const avg = remMins / remainWeekdays;
+            avgWDEl.innerText = `${Math.floor(avg / 60)}h ${Math.round(avg % 60)}m`;
+        } else {
+            avgWDEl.innerText = '0h 0m';
+        }
+
+        if (remainAllDays > 0 && remMins > 0) {
+            const avg = remMins / remainAllDays;
+            avgAllEl.innerText = `${Math.floor(avg / 60)}h ${Math.round(avg % 60)}m`;
+        } else {
+            avgAllEl.innerText = '0h 0m';
+        }
+    }
+
+    /* ─── 자동저장 ─── */
+    function autoSaveRow(d) {
+        const picker = document.getElementById('monthPicker').value;
+        const rows = document.querySelectorAll('#workTableBody tr:not(.week-group-header)');
+        const row = Array.from(rows).find(r => parseInt(r.dataset.day) === d);
+        if (!row) return;
+
+        let full = JSON.parse(localStorage.getItem(`workData_v18_${picker}`)) || {};
+        full[d] = {
+            in: row.querySelector('.in-time').value,
+            out: row.querySelector('.out-time').value
+        };
+        full.dayData = dayData;
+        localStorage.setItem(`workData_v18_${picker}`, JSON.stringify(full));
+        calculateRow(row);
+    }
+
+    function updateAllCalculations() {
+        document.querySelectorAll('#workTableBody tr:not(.week-group-header)').forEach(row => calculateRow(row));
+    }
+
+    /* ─── 주간 접기/펼치기 ─── */
+    function toggleWeek(w, headerEl) {
+        headerEl.classList.toggle('week-collapsed');
+        document.querySelectorAll(`.week-row-${w}`).forEach(r => r.classList.toggle('collapsed-row'));
+    }
+
+    /* ─── 급여 상세 토글 ─── */
+    function toggleWeeklyPayDetail(w, e) {
+        e.stopPropagation();
+        if (!hourlyRate) { alert("⚙️ 설정에서 연봉을 입력해주세요."); return; }
+        const b = document.getElementById(`weekPayBox-${w}`);
+        const visible = b.style.display === 'block';
+        document.querySelectorAll('.pay-detail-box').forEach(x => x.style.display = 'none');
+        b.style.display = visible ? 'none' : 'block';
+    }
+
+    function togglePayDetail(d) {
+        if (!hourlyRate) { alert("⚙️ 설정에서 연봉을 입력해주세요."); return; }
+        const b = document.getElementById(`payBox-${d}`);
+        const visible = b.style.display === 'block';
+        document.querySelectorAll('.pay-detail-box').forEach(x => x.style.display = 'none');
+        b.style.display = visible ? 'none' : 'block';
+    }
+
+    /* ─── 휴게 모달 ─── */
+    let editingDay = null;
+
+    function openBreakModal(d) {
+        editingDay = d;
+        const list = document.getElementById('breakInputList');
+        list.innerHTML = '';
+        if (!dayData[d]) dayData[d] = [];
+        dayData[d].forEach(b => addBreakRow(b.start, b.end));
+        if (dayData[d].length === 0) addBreakRow();
+        document.getElementById('breakModal').style.display = 'block';
+    }
+
+    function addBreakRow(s = '', e = '') {
+        const d = document.createElement('div');
+        d.style.marginBottom = '5px';
+        d.innerHTML = `<input type="text" class="time-input b-s" value="${s}" oninput="autoFormat(this)"> ~ <input type="text" class="time-input b-e" value="${e}" oninput="autoFormat(this)"> <button onclick="this.parentElement.remove()" style="color:red; border:none; background:none; cursor:pointer; font-weight:bold;">X</button>`;
+        document.getElementById('breakInputList').appendChild(d);
+    }
+
+    function closeModal() {
+        document.getElementById('breakModal').style.display = 'none';
+    }
+
+    function applyBreaks() {
+        const rows = document.querySelectorAll('#breakInputList div');
+        dayData[editingDay] = [];
+        rows.forEach(d => {
+            const s = d.querySelector('.b-s').value;
+            const e = d.querySelector('.b-e').value;
+            if (s && e) dayData[editingDay].push({ start: s, end: e });
+        });
+        closeModal();
+        autoSaveRow(editingDay);
+    }
+
+    /* ─── 초기화 ─── */
     document.getElementById('monthPicker').value = "2026-04";
     initTable();
-    window.onclick = function(e) { if(!e.target.matches('.btn-plus') && !e.target.matches('.week-pay-btn')) document.querySelectorAll('.pay-detail-box').forEach(x => x.style.display = 'none'); }
+
+    window.onclick = function (e) {
+        if (!e.target.matches('.btn-plus') && !e.target.matches('.week-pay-btn')) {
+            document.querySelectorAll('.pay-detail-box').forEach(x => x.style.display = 'none');
+        }
+    };
     window.addEventListener('resize', adjustHeaderPosition);
 </script>
 </body>

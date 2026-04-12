@@ -4,16 +4,31 @@
     <meta charset="UTF-8">
     <title>관리표</title>
     <style>
-        :root { --primary: #2c3e50; --accent: #3498db; --bg: #f4f7f6; --break: #e67e22; --night: #8e44ad; --danger: #e74c3c; --success: #27ae60; --gray: #95a5a6; }
-        body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: var(--primary); padding: 15px; font-size: 13px; margin: 0; }
+        /* [색상 테마만 수정] */
+        :root { 
+            --primary: #1e272e; /* 딥 슬레이트 (헤더/네비) */
+            --accent: #d2dae2;  /* 실버 그레이 (포인트) */
+            --bg: #0f1418;      /* 다크 미드나잇 (배경) */
+            --wood: #3d2b1f;    /* 다크 우드 (주차/포인트) */
+            --break: #f39c12;   /* 포인트 골드 */
+            --night: #9b59b6;   /* 심야 보라 */
+            --danger: #e74c3c; 
+            --success: #2ecc71; 
+            --gray: #485460; 
+            --text-main: #f1f2f6; 
+            --text-sub: #a4b0be;
+            --border: #2f3542;
+        }
+
+        body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: var(--text-main); padding: 15px; font-size: 13px; margin: 0; }
         
-        .container { max-width: 1300px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); position: relative; }
+        .container { max-width: 1300px; margin: 0 auto; background: #161b22; padding: 25px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); border: 1px solid var(--border); position: relative; }
         
         .header-fixed-section {
             position: sticky;
             top: 0;
             z-index: 1100;
-            background: var(--bg);
+            background: #161b22; /* 컨테이너와 동일한 배경색으로 불투명 처리 */
             padding: 10px 0;
             margin: -15px -15px 0 -15px;
             padding-left: 15px;
@@ -21,43 +36,52 @@
             border-bottom: 2px solid var(--primary);
         }
 
-        .month-nav { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px; background: #fff; padding: 8px; border-radius: 8px; border: 1px solid #ddd; }
-        .nav-btn { background: var(--primary); color: white; border: none; padding: 5px 12px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px; }
+        .month-nav { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px; background: var(--primary); padding: 8px; border-radius: 8px; border: 1px solid var(--border); }
+        .nav-btn { background: var(--gray); color: white; border: none; padding: 5px 12px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px; }
+        .nav-btn:hover { background: var(--accent); color: var(--primary); }
         
+        #monthPicker { background: #0d1117; color: white; border: 1px solid var(--border); padding: 5px 10px; border-radius: 5px; font-weight: bold; }
+
         .summary-dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 10px; }
-        .summary-card { background: #fff; padding: 10px; border-radius: 8px; border-left: 5px solid var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .summary-card h4 { margin: 0 0 5px 0; font-size: 11px; color: #666; }
-        .summary-card .value { font-size: 15px; font-weight: bold; }
+        .summary-card { background: #0d1117; padding: 10px; border-radius: 8px; border-left: 5px solid var(--accent); box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+        .summary-card h4 { margin: 0 0 5px 0; font-size: 11px; color: var(--text-sub); }
+        .summary-card .value { font-size: 15px; font-weight: bold; color: var(--text-main); }
 
         .salary-container { display: flex; align-items: center; justify-content: space-between; }
-        .salary-masked { filter: blur(5px); user-select: none; }
-        .eye-btn { background: none; border: none; cursor: pointer; }
+        .salary-masked { filter: blur(6px); user-select: none; }
+        .eye-btn { background: none; border: none; cursor: pointer; color: var(--text-sub); }
 
-        .target-analysis { background: #eef5ff; padding: 10px; border-radius: 8px; display: flex; justify-content: space-around; align-items: center; border: 1px solid #d0e1ff; }
-        .target-item strong { font-size: 13px; color: var(--primary); }
+        .target-analysis { background: rgba(46, 204, 113, 0.05); padding: 10px; border-radius: 8px; display: flex; justify-content: space-around; align-items: center; border: 1px solid rgba(46, 204, 113, 0.2); }
+        .target-item strong { font-size: 13px; color: var(--success); }
 
-        table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 10px; background: #161b22; }
         thead th { 
             position: sticky; 
             z-index: 1000; 
             background-color: var(--primary) !important; 
-            color: white; 
+            color: var(--accent); 
             padding: 12px 5px;
-            border: 1px solid var(--primary);
+            border: 1px solid #1a252f;
         }
 
-        .week-group-header { background: #ecf0f1; cursor: pointer; font-weight: bold; color: var(--primary); border-top: 2px solid #bdc3c7 !important; }
+        /* [핵심] 모든 셀에 불투명 배경색 강제 적용 (스크롤 겹침 방지) */
+        tbody td { background-color: #161b22 !important; border: 1px solid var(--border); padding: 10px 5px; text-align: center; color: var(--text-main); }
+        
+        .week-group-header { background: #1e272e !important; cursor: pointer; font-weight: bold; color: var(--accent); border-top: 2px solid var(--wood) !important; }
+        .week-group-header td { background: #1e272e !important; }
         .week-title::before { content: ' \00a0 ▼ '; font-size: 10px; margin-right: 8px; }
         .week-collapsed .week-title::before { content: ' \00a0 ▶ '; }
         
-        .week-total-cell { background: #dbe4e6; color: var(--primary); font-weight: bold; text-align: center; vertical-align: middle; position: relative; }
-        .week-pay-btn { background: #f39c12; color: white; border: none; border-radius: 4px; padding: 2px 6px; cursor: pointer; font-size: 10px; }
+        .week-total-cell { background: #0d1117 !important; color: var(--success); font-weight: bold; text-align: center; vertical-align: middle; position: relative; }
+        .week-pay-btn { background: var(--wood); color: white; border: 1px solid var(--accent); border-radius: 4px; padding: 2px 6px; cursor: pointer; font-size: 10px; }
 
-        th, td { border: 1px solid #eee; padding: 10px 5px; text-align: center; background: #fff; }
-        .time-input { width: 60px; text-align: center; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-weight: bold; }
-        .btn-plus { background: var(--accent); color: white; border: none; width: 22px; height: 22px; border-radius: 4px; cursor: pointer; }
-        .pay-detail-box { display: none; position: absolute; z-index: 1200; background: white; border: 1px solid var(--accent); padding: 12px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 170px; text-align: left; right: 0; top: 110%; line-height: 1.8; font-size: 12px; color: #333; }
-        .weekend td { background: #fff5f5; color: var(--danger); }
+        .time-input { background: #0d1117; color: white; width: 60px; text-align: center; padding: 6px; border: 1px solid var(--border); border-radius: 4px; font-weight: bold; }
+        .btn-plus { background: var(--accent); color: var(--primary); border: none; width: 22px; height: 22px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        
+        .pay-detail-box { display: none; position: absolute; z-index: 1200; background: #2f3542; border: 1px solid var(--accent); padding: 12px; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 170px; text-align: left; right: 0; top: 110%; line-height: 1.8; font-size: 12px; color: #f1f2f6; }
+        .pay-detail-box strong { color: var(--success); }
+        
+        .weekend td { background: #1c1414 !important; color: #ff7675; }
         .collapsed-row { display: none; }
     </style>
 </head>
@@ -67,21 +91,21 @@
     <div class="header-fixed-section" id="fixedHeader">
         <div class="month-nav">
             <button class="nav-btn" onclick="changeMonth(-1)"> < </button>
-            <button class="nav-btn" onclick="goToday()" style="background:var(--accent); font-size:12px;">이번달</button>
+            <button class="nav-btn" onclick="goToday()" style="background:var(--accent); color:var(--primary); font-size:12px;">이번달</button>
             <input type="month" id="monthPicker" onchange="initTable()">
             <button class="nav-btn" onclick="changeMonth(1)"> > </button>
             <button class="nav-btn" style="background:var(--gray); font-size:11px;" onclick="toggleSettings()">⚙️ 설정</button>
             
             <div id="settingsArea" style="display:none; margin-left:10px;">
-                연봉 <input type="number" id="annualSalary" style="width:70px;" oninput="saveSalary()"> 만원
-                <span id="hrDisplayArea" style="margin-left:10px; font-size:11px; color:var(--success); font-weight:bold;">(계산 시급: <span id="hrDisplay">0</span>원)</span>
+                연봉 <input type="number" id="annualSalary" style="width:70px; background:#0d1117; color:white; border:1px solid var(--border); padding:4px;" oninput="saveSalary()"> 만원
+                <span id="hrDisplayArea" style="margin-left:10px; font-size:11px; color:var(--success); font-weight:bold;">(시급: <span id="hrDisplay">0</span>원)</span>
             </div>
             
-            <div style="margin-left:auto; font-size:11px; color:var(--success); font-weight:bold;">✓ 자동 저장 모드</div>
+            <div style="margin-left:auto; font-size:11px; color:var(--success); font-weight:bold; opacity: 0.8;">✓ 실시간 자동 저장</div>
         </div>
 
         <div class="summary-dashboard">
-            <div class="summary-card" style="border-left-color: var(--accent);">
+            <div class="summary-card">
                 <h4>총 실 근무시간</h4>
                 <div id="totalWork" class="value">0시간 0분</div>
             </div>
@@ -89,22 +113,22 @@
                 <h4>총 연장 / 심야</h4>
                 <div class="value"><span id="totalOver" style="color:var(--break)">0h</span> / <span id="totalNight" style="color:var(--night)">0h</span></div>
             </div>
-            <div class="summary-card" style="border-left-color: var(--danger);">
+            <div class="summary-card">
                 <h4>잔여 가용 시간</h4>
                 <div id="remainingLimit" class="value">0h</div>
             </div>
-            <div class="summary-card">
+            <div class="summary-card" style="border-left-color: var(--success);">
                 <h4>예상 정보</h4>
                 <div class="salary-container">
-                    <div id="totalPay" class="value salary-masked" style="color:var(--danger)">0원</div>
+                    <div id="totalPay" class="value salary-masked" style="color:var(--success)">0원</div>
                     <button class="eye-btn" onclick="togglePayVisibility()">👁️</button>
                 </div>
             </div>
         </div>
 
         <div class="target-analysis">
-            <div class="target-item"><span>남은 평일 기준 (일 평균):</span> <strong id="avgWeekday">0시간 0분</strong></div>
-            <div class="target-item"><span>평일+주말 포함 (일 평균):</span> <strong id="avgAllDays">0시간 0분</strong></div>
+            <div class="target-item"><span>남은 평일 기준 (일 평균)</span> <strong id="avgWeekday">0시간 0분</strong></div>
+            <div class="target-item"><span>평일+주말 포함 (일 평균)</span> <strong id="avgAllDays">0시간 0분</strong></div>
         </div>
     </div>
 
@@ -127,14 +151,14 @@
     </table>
 </div>
 
-<div id="breakModal" class="modal" style="display:none; position:fixed; z-index:3000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5);">
-    <div style="background:white; margin:10% auto; padding:20px; width:300px; border-radius:10px;">
-        <h3>추가 휴게 설정</h3>
+<div id="breakModal" class="modal" style="display:none; position:fixed; z-index:3000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.8);">
+    <div style="background:#161b22; margin:10% auto; padding:25px; width:300px; border-radius:10px; border:1px solid var(--border);">
+        <h3 style="margin-top:0; color:var(--accent);">추가 휴게 설정</h3>
         <div id="breakInputList"></div>
-        <button onclick="addBreakRow()" style="width:100%; margin:10px 0; padding:8px;">+ 추가</button>
+        <button onclick="addBreakRow()" style="width:100%; margin:10px 0; padding:8px; background:var(--gray); color:white; border:none; border-radius:5px; cursor:pointer;">+ 추가</button>
         <div style="text-align:right;">
-            <button onclick="closeModal()">취소</button>
-            <button onclick="applyBreaks()" style="background:var(--accent); color:white; border:none; padding:8px 15px; border-radius:4px;">적용</button>
+            <button onclick="closeModal()" style="padding:8px 15px; background:none; color:white; border:1px solid var(--border); border-radius:5px; cursor:pointer;">취소</button>
+            <button onclick="applyBreaks()" style="background:var(--accent); color:var(--primary); border:none; padding:8px 15px; border-radius:5px; margin-left:5px; font-weight:bold; cursor:pointer;">적용</button>
         </div>
     </div>
 </div>
@@ -205,7 +229,7 @@
             const tr = document.createElement('tr');
             tr.className = `week-row-${weekNum}`;
             if (isWeekend) tr.classList.add('weekend');
-            tr.innerHTML = `<td>${d}(${dayOfWeek})</td><td><input type="text" class="time-input in-time" value="${rowSaved.in}" oninput="autoFormat(this); autoSaveRow(${d});"></td><td><input type="text" class="time-input out-time" value="${rowSaved.out}" oninput="autoFormat(this); autoSaveRow(${d});"></td><td><button onclick="openBreakModal(${d})">⚙️</button></td><td class="res-break">0분</td><td class="res-over">0h</td><td class="res-night">0h</td><td style="font-weight:bold"><span class="res-final" data-mins="0">0h 0m</span></td><td><div class="pay-container" style="position:relative;"><button class="btn-plus" onclick="togglePayDetail(${d})">+</button><div id="payBox-${d}" class="pay-detail-box"></div></div></td><td style="background:rgba(0,0,0,0.02);"></td>`;
+            tr.innerHTML = `<td>${d}(${dayOfWeek})</td><td><input type="text" class="time-input in-time" value="${rowSaved.in}" oninput="autoFormat(this); autoSaveRow(${d});"></td><td><input type="text" class="time-input out-time" value="${rowSaved.out}" oninput="autoFormat(this); autoSaveRow(${d});"></td><td><button onclick="openBreakModal(${d})" style="background:none; border:1px solid var(--border); color:var(--text-sub); cursor:pointer; border-radius:4px;">⚙️</button></td><td class="res-break">0분</td><td class="res-over">0h</td><td class="res-night">0h</td><td style="font-weight:bold"><span class="res-final" data-mins="0">0h 0m</span></td><td><div class="pay-container" style="position:relative;"><button class="btn-plus" onclick="togglePayDetail(${d})">+</button><div id="payBox-${d}" class="pay-detail-box"></div></div></td><td style="background:rgba(255,255,255,0.02);"></td>`;
             tbody.appendChild(tr);
             calculateRow(tr);
         }
@@ -239,7 +263,7 @@
         row.querySelector('.res-final').innerText = `${Math.floor(workM/60)}h ${workM%60}m`;
         row.querySelector('.res-final').dataset.mins = workM;
         const pb = document.getElementById(`payBox-${day}`);
-        if(pb) { pb.innerHTML = `기본: ${bP.toLocaleString()}원<br>연장: ${oP.toLocaleString()}원<br>심야: ${nP.toLocaleString()}원<hr><strong>총합: ${tot.toLocaleString()}원</strong>`; pb.dataset.total = tot; pb.dataset.bP = bP; pb.dataset.oP = oP; pb.dataset.nP = nP; }
+        if(pb) { pb.innerHTML = `기본: ${bP.toLocaleString()}원<br>연장: ${oP.toLocaleString()}원<br>심야: ${nP.toLocaleString()}원<hr style="border:0; border-top:1px dashed #555;"><strong>총합: ${tot.toLocaleString()}원</strong>`; pb.dataset.total = tot; pb.dataset.bP = bP; pb.dataset.oP = oP; pb.dataset.nP = nP; }
         calculateTotal();
     }
 
@@ -295,7 +319,7 @@
     
     let editingDay = null;
     function openBreakModal(d) { editingDay=d; const l=document.getElementById('breakInputList'); l.innerHTML=''; if(!dayData[d])dayData[d]=[]; dayData[d].forEach(b=>addBreakRow(b.start,b.end)); if(dayData[d].length===0)addBreakRow(); document.getElementById('breakModal').style.display='block'; }
-    function addBreakRow(s='',e='') { const d=document.createElement('div'); d.style.marginBottom="5px"; d.innerHTML=`<input type="text" class="time-input b-s" value="${s}" oninput="autoFormat(this)"> ~ <input type="text" class="time-input b-e" value="${e}" oninput="autoFormat(this)"> <button onclick="this.parentElement.remove()" style="color:red; border:none; cursor:pointer;">X</button>`; document.getElementById('breakInputList').appendChild(d); }
+    function addBreakRow(s='',e='') { const d=document.createElement('div'); d.style.marginBottom="5px"; d.innerHTML=`<input type="text" class="time-input b-s" value="${s}" oninput="autoFormat(this)"> ~ <input type="text" class="time-input b-e" value="${e}" oninput="autoFormat(this)"> <button onclick="this.parentElement.remove()" style="color:red; border:none; background:none; cursor:pointer; font-weight:bold;">X</button>`; document.getElementById('breakInputList').appendChild(d); }
     function closeModal() { document.getElementById('breakModal').style.display='none'; }
     function applyBreaks() { const ds=document.querySelectorAll('#breakInputList div'); dayData[editingDay]=[]; ds.forEach(d=>{const s=d.querySelector('.b-s').value, e=d.querySelector('.b-e').value; if(s&&e)dayData[editingDay].push({start:s,end:e});}); closeModal(); autoSaveRow(editingDay); }
 

@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>근무 & 급여 매니저 v27</title>
+    <style>
+        :root { --primary: #2c3e50; --accent: #3498db; --bg: #f4f7f6; --break: #e67e22; --night: #8e44ad; --danger: #e74c3c; --success: #27ae60; --gray: #95a5a6; }
+        body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: var(--primary); padding: 15px; font-size: 13px; margin: 0; }
+        
+        .container { max-width: 1300px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); position: relative; }
+        
+        .header-fixed-section {
+            position: sticky;
+            top: 0;
+            z-index: 1100;
+            background: var(--bg);
+            padding: 10px 0;
+            margin: -15px -15px 0 -15px;
+            padding-left: 15px;
+            padding-right: 15px;
+            border-bottom: 2px solid var(--primary);
+        }
+
+        .month-nav { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px; background: #fff; padding: 8px; border-radius: 8px; border: 1px solid #ddd; }
+        .nav-btn { background: var(--primary); color: white; border: none; padding: 5px 12px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px; }
+        
+        .summary-dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 10px; }
+        .summary-card { background: #fff; padding: 10px; border-radius: 8px; border-left: 5px solid var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .summary-card h4 { margin: 0 0 5px 0; font-size: 11px; color: #666; }
+        .summary-card .value { font-size: 15px; font-weight: bold; }
+
+        .salary-container { display: flex; align-items: center; justify-content: space-between; }
+        .salary-masked { filter: blur(5px); user-select: none; }
+        .eye-btn { background: none; border: none; cursor: pointer; }
+
+        .target-analysis { background: #eef5ff; padding: 10px; border-radius: 8px; display: flex; justify-content: space-around; align-items: center; border: 1px solid #d0e1ff; }
+        .target-item strong { font-size: 13px; color: var(--primary); }
+
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 10px; }
+        thead th { 
+            position: sticky; 
+            z-index: 1000; 
+            background-color: var(--primary) !important; 
+            color: white; 
+            padding: 12px 5px;
+            border: 1px solid var(--primary);
+        }
+
+        .week-group-header { background: #ecf0f1; cursor: pointer; font-weight: bold; color: var(--primary); border-top: 2px solid #bdc3c7 !important; }
+        .week-title::before { content: ' \00a0 ▼ '; font-size: 10px; margin-right: 8px; }
+        .week-collapsed .week-title::before { content: ' \00a0 ▶ '; }
+        
+        .week-total-cell { background: #dbe4e6; color: var(--primary); font-weight: bold; text-align: center; vertical-align: middle; position: relative; }
+        .week-pay-btn { background: #f39c12; color: white; border: none; border-radius: 4px; padding: 2px 6px; cursor: pointer; font-size: 10px; }
+
+        th, td { border: 1px solid #eee; padding: 10px 5px; text-align: center; background: #fff; }
+        .time-input { width: 60px; text-align: center; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-weight: bold; }
+        .btn-plus { background: var(--accent); color: white; border: none; width: 22px; height: 22px; border-radius: 4px; cursor: pointer; }
+        .pay-detail-box { display: none; position: absolute; z-index: 1200; background: white; border: 1px solid var(--accent); padding: 12px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 170px; text-align: left; right: 0; top: 110%; line-height: 1.8; font-size: 12px; color: #333; }
+        .weekend td { background: #fff5f5; color: var(--danger); }
+        .collapsed-row { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-fixed-section" id="fixedHeader">
+        <div class="month-nav">
+            <button class="nav-btn" onclick="changeMonth(-1)"> < </button>
+            <button class="nav-btn" onclick="goToday()" style="background:var(--accent); font-size:12px;">이번달</button>
+            <input type="month" id="monthPicker" onchange="initTable()">
+            <button class="nav-btn" onclick="changeMonth(1)"> > </button>
+            <button class="nav-btn" style="background:var(--gray); font-size:11px;" onclick="toggleSettings()">⚙️ 설정</button>
+            
+            <div id="settingsArea" style="display:none; margin-left:10px;">
+                연봉 <input type="number" id="annualSalary" style="width:70px;" oninput="saveSalary()"> 만원
+                <span id="hrDisplayArea" style="margin-left:10px; font-size:11px; color:var(--success); font-weight:bold;">(계산 시급: <span id="hrDisplay">0</span>원)</span>
+            </div>
+            
+            <div style="margin-left:auto; font-size:11px; color:var(--success); font-weight:bold;">✓ 자동 저장 모드</div>
+        </div>
+
+        <div class="summary-dashboard">
+            <div class="summary-card" style="border-left-color: var(--accent);">
+                <h4>총 실 근무시간</h4>
+                <div id="totalWork" class="value">0시간 0분</div>
+            </div>
+            <div class="summary-card">
+                <h4>총 연장 / 심야</h4>
+                <div class="value"><span id="totalOver" style="color:var(--break)">0h</span> / <span id="totalNight" style="color:var(--night)">0h</span></div>
+            </div>
+            <div class="summary-card" style="border-left-color: var(--danger);">
+                <h4>잔여 가용 시간</h4>
+                <div id="remainingLimit" class="value">0h</div>
+            </div>
+            <div class="summary-card">
+                <h4>예상 정보</h4>
+                <div class="salary-container">
+                    <div id="totalPay" class="value salary-masked" style="color:var(--danger)">0원</div>
+                    <button class="eye-btn" onclick="togglePayVisibility()">👁️</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="target-analysis">
+            <div class="target-item"><span>남은 평일 기준 (일 평균):</span> <strong id="avgWeekday">0시간 0분</strong></div>
+            <div class="target-item"><span>평일+주말 포함 (일 평균):</span> <strong id="avgAllDays">0시간 0분</strong></div>
+        </div>
+    </div>
+
+    <table>
+        <thead id="tableHead">
+            <tr>
+                <th style="width: 80px;">날짜</th>
+                <th style="width: 90px;">출근</th>
+                <th style="width: 90px;">퇴근</th>
+                <th style="width: 60px;">휴게</th>
+                <th style="width: 80px;">총 휴게</th>
+                <th>연장</th>
+                <th>심야</th>
+                <th>실 근무</th>
+                <th style="width: 60px;">정보</th>
+                <th style="width: 100px;">주 합계</th>
+            </tr>
+        </thead>
+        <tbody id="workTableBody"></tbody>
+    </table>
+</div>
+
+<div id="breakModal" class="modal" style="display:none; position:fixed; z-index:3000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5);">
+    <div style="background:white; margin:10% auto; padding:20px; width:300px; border-radius:10px;">
+        <h3>추가 휴게 설정</h3>
+        <div id="breakInputList"></div>
+        <button onclick="addBreakRow()" style="width:100%; margin:10px 0; padding:8px;">+ 추가</button>
+        <div style="text-align:right;">
+            <button onclick="closeModal()">취소</button>
+            <button onclick="applyBreaks()" style="background:var(--accent); color:white; border:none; padding:8px 15px; border-radius:4px;">적용</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let dayData = {};
+    let hourlyRate = 0;
+    const TODAY_REF = new Date();
+
+    function goToday() {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        document.getElementById('monthPicker').value = `${y}-${m}`;
+        initTable();
+    }
+
+    function changeMonth(offset) {
+        const picker = document.getElementById('monthPicker');
+        let [y, m] = picker.value.split('-').map(Number);
+        let date = new Date(y, (m - 1) + offset, 1);
+        picker.value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        initTable();
+    }
+
+    function togglePayVisibility() { if (!hourlyRate) { alert("정보 설정을 해주세요."); return; } document.getElementById('totalPay').classList.toggle('salary-masked'); }
+    function toggleSettings() { const a = document.getElementById('settingsArea'); a.style.display = a.style.display === 'none' ? 'inline-block' : 'none'; }
+    
+    function saveSalary() { 
+        const s = document.getElementById('annualSalary').value; 
+        if(s && s > 0) { 
+            hourlyRate = Math.floor((s * 10000) / 12 / 209); 
+            document.getElementById('hrDisplay').innerText = hourlyRate.toLocaleString();
+            localStorage.setItem('userSalary_Master', s); 
+            updateAllCalculations(); 
+        } 
+    }
+
+    function initTable() {
+        const picker = document.getElementById('monthPicker').value;
+        const [year, month] = picker.split('-').map(Number);
+        const lastDay = new Date(year, month, 0).getDate();
+        const tbody = document.getElementById('workTableBody');
+        tbody.innerHTML = '';
+        const saved = JSON.parse(localStorage.getItem(`workData_v18_${picker}`)) || {};
+        dayData = saved.dayData || {};
+        const salary = localStorage.getItem('userSalary_Master');
+        if(salary) { 
+            document.getElementById('annualSalary').value = salary; 
+            hourlyRate = Math.floor((salary * 10000) / 12 / 209);
+            document.getElementById('hrDisplay').innerText = hourlyRate.toLocaleString();
+        }
+
+        let currentWeek = -1;
+        for (let d = 1; d <= lastDay; d++) {
+            const dateObj = new Date(year, month - 1, d);
+            const weekNum = Math.ceil((d + new Date(year, month-1, 1).getDay()) / 7);
+            const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+            const dayOfWeek = ['일','월','화','수','목','금','토'][dateObj.getDay()];
+            if (weekNum !== currentWeek) {
+                const weekRow = document.createElement('tr');
+                weekRow.className = 'week-group-header';
+                weekRow.innerHTML = `<td colspan="9" class="week-title" onclick="toggleWeek(${weekNum}, this.parentElement)">${weekNum}주차</td><td class="week-total-cell"><span id="week-total-time-${weekNum}">0h 0m</span> <button class="week-pay-btn" onclick="toggleWeeklyPayDetail(${weekNum}, event)">!!</button><div id="weekPayBox-${weekNum}" class="pay-detail-box"></div></td>`;
+                tbody.appendChild(weekRow);
+                currentWeek = weekNum;
+            }
+            const rowSaved = saved[d] || { in: '', out: '' };
+            const tr = document.createElement('tr');
+            tr.className = `week-row-${weekNum}`;
+            if (isWeekend) tr.classList.add('weekend');
+            tr.innerHTML = `<td>${d}(${dayOfWeek})</td><td><input type="text" class="time-input in-time" value="${rowSaved.in}" oninput="autoFormat(this); autoSaveRow(${d});"></td><td><input type="text" class="time-input out-time" value="${rowSaved.out}" oninput="autoFormat(this); autoSaveRow(${d});"></td><td><button onclick="openBreakModal(${d})">⚙️</button></td><td class="res-break">0분</td><td class="res-over">0h</td><td class="res-night">0h</td><td style="font-weight:bold"><span class="res-final" data-mins="0">0h 0m</span></td><td><div class="pay-container" style="position:relative;"><button class="btn-plus" onclick="togglePayDetail(${d})">+</button><div id="payBox-${d}" class="pay-detail-box"></div></div></td><td style="background:rgba(0,0,0,0.02);"></td>`;
+            tbody.appendChild(tr);
+            calculateRow(tr);
+        }
+        adjustHeaderPosition(); calculatePredictions();
+    }
+
+    function adjustHeaderPosition() { const h = document.getElementById('fixedHeader').offsetHeight; document.querySelectorAll('thead th').forEach(th => { th.style.top = h + 'px'; }); }
+
+    function calculateRow(row) {
+        const inM = timeToMins(row.querySelector('.in-time').value);
+        const outM = timeToMins(row.querySelector('.out-time').value);
+        const day = Array.from(document.querySelectorAll('#workTableBody tr:not(.week-group-header)')).indexOf(row) + 1;
+        const isWeekend = row.classList.contains('weekend');
+        let workM = 0, breakM = 0, overM = 0, nightM = 0;
+        if (inM !== null && outM !== null) {
+            workM = outM - inM;
+            if (!isWeekend && inM <= 720 && outM >= 780) breakM = 60;
+            if(dayData[day]) dayData[day].forEach(b => { const s = timeToMins(b.start), e = timeToMins(b.end); if (e > s) breakM += (e - s); });
+            workM = Math.max(0, workM - breakM);
+            if (workM > 480) overM = workM - 480;
+            const overlapS = Math.max(inM, 1320), overlapE = Math.min(outM, 1800);
+            if (overlapE > overlapS) nightM = (overlapE - overlapS);
+        }
+        let bP = 0, oP = 0, nP = Math.floor((nightM/60)*hourlyRate*0.5);
+        if (!isWeekend) { bP = Math.floor((workM/60)*hourlyRate); oP = Math.floor((overM/60)*hourlyRate*0.5); }
+        else { const hB = Math.min(workM, 480); bP = Math.floor((hB/60)*hourlyRate*1.5); oP = Math.floor((Math.max(0, workM-480)/60)*hourlyRate*2.0); }
+        let tot = bP + oP + nP;
+        row.querySelector('.res-break').innerText = `${Math.floor(breakM/60)}h ${breakM%60}m`;
+        row.querySelector('.res-over').innerText = `${Math.floor(overM/60)}h ${overM%60}m`;
+        row.querySelector('.res-night').innerText = `${Math.floor(nightM/60)}h ${nightM%60}m`;
+        row.querySelector('.res-final').innerText = `${Math.floor(workM/60)}h ${workM%60}m`;
+        row.querySelector('.res-final').dataset.mins = workM;
+        const pb = document.getElementById(`payBox-${day}`);
+        if(pb) { pb.innerHTML = `기본: ${bP.toLocaleString()}원<br>연장: ${oP.toLocaleString()}원<br>심야: ${nP.toLocaleString()}원<hr><strong>총합: ${tot.toLocaleString()}원</strong>`; pb.dataset.total = tot; pb.dataset.bP = bP; pb.dataset.oP = oP; pb.dataset.nP = nP; }
+        calculateTotal();
+    }
+
+    function calculateTotal() {
+        let w=0, p=0, o=0, n=0; let weekMins = {}, weekPays = {};
+        document.querySelectorAll('.res-final').forEach((el) => {
+            const mins = parseInt(el.dataset.mins || 0); w += mins;
+            const row = el.closest('tr');
+            const weekMatch = Array.from(row.classList).find(c => c.startsWith('week-row-'));
+            if (weekMatch) {
+                const wNum = weekMatch.split('-')[2];
+                weekMins[wNum] = (weekMins[wNum] || 0) + mins;
+                const rowIdx = Array.from(document.querySelectorAll('#workTableBody tr:not(.week-group-header)')).indexOf(row);
+                const pb = document.getElementById(`payBox-${rowIdx+1}`);
+                if (pb && pb.dataset.total) { if (!weekPays[wNum]) weekPays[wNum] = { b:0, o:0, n:0, t:0 }; weekPays[wNum].b += parseInt(pb.dataset.bP || 0); weekPays[wNum].o += parseInt(pb.dataset.oP || 0); weekPays[wNum].n += parseInt(pb.dataset.nP || 0); weekPays[wNum].t += parseInt(pb.dataset.total || 0); }
+            }
+            o += timeToMins(row.querySelector('.res-over').innerText.replace('h',':').replace('m','')) || 0;
+            n += timeToMins(row.querySelector('.res-night').innerText.replace('h',':').replace('m','')) || 0;
+        });
+        for (let wNum in weekMins) { document.getElementById(`week-total-time-${wNum}`).innerText = `${Math.floor(weekMins[wNum]/60)}h ${weekMins[wNum]%60}m`; const wp = weekPays[wNum]; if (wp) document.getElementById(`weekPayBox-${wNum}`).innerHTML = `주간 총액: <strong>${wp.t.toLocaleString()}원</strong><br><small>(기본:${wp.b.toLocaleString()} / 연장:${wp.o.toLocaleString()} / 심야:${wp.n.toLocaleString()})</small>`; if (wp) p += wp.t; }
+        document.getElementById('totalWork').innerText = `${Math.floor(w/60)}시간 ${w%60}분`;
+        document.getElementById('totalOver').innerText = Math.floor(o/60)+"h";
+        document.getElementById('totalNight').innerText = Math.floor(n/60)+"h";
+        document.getElementById('totalPay').innerText = p.toLocaleString() + "원";
+        const [year, month] = document.getElementById('monthPicker').value.split('-').map(Number);
+        const rem = Math.floor((new Date(year, month, 0).getDate()/7)*52) - (w/60);
+        document.getElementById('remainingLimit').innerText = rem.toFixed(1) + "h";
+    }
+
+    function timeToMins(t) { if (!t || !t.includes(':')) return null; const [h, m] = t.split(':').map(Number); return h * 60 + m; }
+    function autoFormat(i) { let v = i.value.replace(/\D/g, ''); if (v.length >= 4) i.value = v.substring(0, 2) + ':' + v.substring(2, 4); }
+    function toggleWeek(w, h) { h.classList.toggle('week-collapsed'); document.querySelectorAll(`.week-row-${w}`).forEach(r => r.classList.toggle('collapsed-row')); }
+    function updateAllCalculations() { document.querySelectorAll('#workTableBody tr:not(.week-group-header)').forEach(row => calculateRow(row)); }
+    function autoSaveRow(d) { const p = document.getElementById('monthPicker').value; const row = document.querySelectorAll('#workTableBody tr:not(.week-group-header)')[d-1]; let full = JSON.parse(localStorage.getItem(`workData_v18_${p}`)) || { dayData: dayData }; full[d] = { in: row.querySelector('.in-time').value, out: row.querySelector('.out-time').value }; full.dayData = dayData; localStorage.setItem(`workData_v18_${p}`, JSON.stringify(full)); calculateRow(row); calculatePredictions(); }
+    function toggleWeeklyPayDetail(w, e) { e.stopPropagation(); if(!hourlyRate){alert("정보 설정을 해주세요."); return;} const b = document.getElementById(`weekPayBox-${w}`); const v = b.style.display==='block'; document.querySelectorAll('.pay-detail-box').forEach(x=>x.style.display='none'); b.style.display = v?'none':'block'; }
+    function togglePayDetail(d) { if(!hourlyRate){alert("정보 설정을 해주세요."); return;} const b = document.getElementById(`payBox-${d}`); const v = b.style.display==='block'; document.querySelectorAll('.pay-detail-box').forEach(x=>x.style.display='none'); b.style.display = v?'none':'block'; }
+    function calculatePredictions() {
+        const picker = document.getElementById('monthPicker').value;
+        const [y, m] = picker.split('-').map(Number); const ld = new Date(y, m, 0).getDate();
+        let rw=0, rt=0;
+        const now = new Date();
+        const todayStr = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
+        if (picker === todayStr) {
+            const todayNum = now.getDate();
+            for (let d=1; d<=ld; d++) {
+                const c = new Date(y, m-1, d); if(d >= todayNum) { rt++; if(c.getDay()!==0 && c.getDay()!==6) rw++; }
+            }
+        }
+        const rm = parseFloat(document.getElementById('remainingLimit').innerText)*60;
+        document.getElementById('avgWeekday').innerText = rw>0 ? `${Math.floor((rm/rw)/60)}h ${Math.round((rm/rw)%60)}m` : "0h 0m";
+        document.getElementById('avgAllDays').innerText = rt>0 ? `${Math.floor((rm/rt)/60)}h ${Math.round((rm/rt)%60)}m` : "0h 0m";
+    }
+    
+    let editingDay = null;
+    function openBreakModal(d) { editingDay=d; const l=document.getElementById('breakInputList'); l.innerHTML=''; if(!dayData[d])dayData[d]=[]; dayData[d].forEach(b=>addBreakRow(b.start,b.end)); if(dayData[d].length===0)addBreakRow(); document.getElementById('breakModal').style.display='block'; }
+    function addBreakRow(s='',e='') { const d=document.createElement('div'); d.style.marginBottom="5px"; d.innerHTML=`<input type="text" class="time-input b-s" value="${s}" oninput="autoFormat(this)"> ~ <input type="text" class="time-input b-e" value="${e}" oninput="autoFormat(this)"> <button onclick="this.parentElement.remove()" style="color:red; border:none; cursor:pointer;">X</button>`; document.getElementById('breakInputList').appendChild(d); }
+    function closeModal() { document.getElementById('breakModal').style.display='none'; }
+    function applyBreaks() { const ds=document.querySelectorAll('#breakInputList div'); dayData[editingDay]=[]; ds.forEach(d=>{const s=d.querySelector('.b-s').value, e=d.querySelector('.b-e').value; if(s&&e)dayData[editingDay].push({start:s,end:e});}); closeModal(); autoSaveRow(editingDay); }
+
+    document.getElementById('monthPicker').value = "2026-04";
+    initTable();
+    window.onclick = function(e) { if(!e.target.matches('.btn-plus') && !e.target.matches('.week-pay-btn')) document.querySelectorAll('.pay-detail-box').forEach(x => x.style.display = 'none'); }
+    window.addEventListener('resize', adjustHeaderPosition);
+</script>
+</body>
+</html>

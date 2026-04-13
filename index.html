@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title관리표</title>
+    <title>관리표</title>
     <style>
         :root { 
             --primary: #1e272e; --accent: #d2dae2; --bg: #0f1418; --wood: #3d2b1f; 
@@ -139,10 +139,6 @@
 
     function autoFormat(input) {
         let v = input.value.replace(/\D/g, '');
-        if (v.length === 3) {
-            // "830" → "08:30"  /  "930" → "09:30"
-            v = '0' + v;
-        }
         if (v.length >= 4) {
             input.value = v.substring(0, 2) + ':' + v.substring(2, 4);
         }

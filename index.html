@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>근무 관리표 v31</title>
+<title>관리표</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
 :root{
@@ -277,7 +277,7 @@ tbody td{background-color:#161b22!important;border:1px solid var(--border);paddi
    🚨 구글 앱스 스크립트 웹 앱 배포 주소를 아래에 반드시 넣으세요!
    예시: const GAS_URL = "https://script.google.com/macros/s/ABCDEFG/exec";
 ========================================== */
-const GAS_URL = "https://script.google.com/macros/s/AKfycbx0GRziD9OcN507lbRy8zbm9aeZ5ogRI6nW9rsbB-X9buxhP_55gu6BJ8C2-bPSqIPf/exec"; 
+const GAS_URL = "여기에_앱스_스크립트_배포_주소_입력"; 
 
 /* ── 글로벌 변수 & 유틸 ── */
 let dayData={}, hourlyRate=0, currentMonthData={};
@@ -307,7 +307,7 @@ function updateSyncStatus(isSyncing) {
   }
 }
 
-// [핵심] 달력 기반 자동 한도 계산기
+// 달력 기반 자동 한도 계산기
 function getMonthlyLimits(year, month) {
   const daysInMonth = new Date(year, month, 0).getDate();
   let weekdays = 0;
@@ -320,14 +320,14 @@ function getMonthlyLimits(year, month) {
   return { standardMins, maxMins };
 }
 
-/* ── API 래퍼 (GAS와 Fetch 통신 + CORS 에러 방지 처리) ── */
+/* ── API 래퍼 (GAS와 Fetch 통신) ── */
 async function apiSaveData(key, payload) {
   if (GAS_URL === "여기에_앱스_스크립트_배포_주소_입력" || !GAS_URL) return; 
   updateSyncStatus(true);
   try {
     await fetch(GAS_URL, {
       method: 'POST',
-      mode: 'no-cors', // 🔥 POST 저장 시 브라우저 보안 에러(CORS) 완벽 차단
+      mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ key: key, value: JSON.stringify(payload) })
     });
@@ -338,7 +338,7 @@ async function apiSaveData(key, payload) {
   }
 }
 
-/* ── 인증 로직 (디버깅 알림창 추가) ── */
+/* ── 인증 로직 ── */
 async function verifyLogin() {
   const inputPw = document.getElementById('pw-input').value;
   if(!inputPw) return;
@@ -350,7 +350,6 @@ async function verifyLogin() {
   showLoading(true, "인증 확인 중...");
   try {
     const res = await fetch(`${GAS_URL}?action=verify&pw=${encodeURIComponent(inputPw)}`);
-    // 🔥 JSON 파싱 에러로 화면이 굳는 것을 방지하기 위해 text()로 먼저 받습니다.
     const text = await res.text(); 
     
     try {
@@ -366,15 +365,12 @@ async function verifyLogin() {
           document.getElementById('pw-input').value = '';
         }
     } catch(jsonError) {
-        // 🔥 만약 응답이 JSON이 아니라 구글 로그인 HTML 화면이 뜬다면 권한 설정 오류입니다.
         showLoading(false);
         alert("🚨 구글 앱스크립트 권한 설정 오류입니다!\n\n앱스크립트 배포 시 [액세스 권한]을 반드시 '모든 사용자(Anyone)'로 선택하고 다시 배포해주세요.");
-        console.error("서버 응답(HTML):", text);
     }
   } catch(e) {
     showLoading(false);
-    alert("🚨 서버 연결 실패!\nGAS_URL 주소가 정확한지 복사 붙여넣기를 다시 확인해주세요.");
-    console.error(e);
+    alert("🚨 서버 연결 실패!\nGAS_URL 주소가 정확한지 다시 확인해주세요.");
   }
 }
 
@@ -422,7 +418,6 @@ async function fetchDataAndRender() {
   showLoading(true, "데이터를 불러오는 중...");
   try {
     const res = await fetch(`${GAS_URL}?action=initLoad&monthKey=${picker}`);
-    // 🔥 데이터 로드 시에도 에러 방지를 위해 text() 검증 도입
     const text = await res.text();
     const data = JSON.parse(text);
     applyInitialData(data.salary, data.workData);
@@ -449,7 +444,18 @@ function applyInitialData(salaryStr, workDataObj) {
 /* ════════ 관리표 탭 ════════ */
 function timeToMins(t){ if(!t||typeof t!=='string') return null; const m=t.trim().match(/^(\d{1,2}):(\d{2})$/); if(!m) return null; return parseInt(m[1])*60+parseInt(m[2]); }
 function fmtHM(mins){ if(mins==null||isNaN(mins)) return '0h 0m'; const sign=mins<0?'-':'',abs=Math.abs(mins); return `${sign}${Math.floor(abs/60)}h ${abs%60}m`; }
-function autoFormat(input){ let v=input.value.replace(/\D/g,''); if(v.length>=4) input.value=v.substring(0,2)+':'+v.substring(2,4); }
+
+// [수정됨] 입력 즉시가 아닌 글자 길이에 맞춰 자연스럽게 변환
+function autoFormat(input){ 
+  let v=input.value.replace(/\D/g,''); 
+  if(v.length > 4) v = v.substring(0,4);
+  if(v.length >= 3){
+    input.value = v.substring(0,2) + ':' + v.substring(2);
+  }else{
+    input.value = v;
+  }
+}
+
 function goToday(){ const n=new Date(); document.getElementById('monthPicker').value=`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`; fetchDataAndRender(); }
 function changeMonth(o){ const p=document.getElementById('monthPicker'); let [y,m]=p.value.split('-').map(Number); const d=new Date(y,(m-1)+o,1); p.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; fetchDataAndRender(); }
 function togglePayVisibility(){ if(!hourlyRate){showToast("⚙️ 설정에서 연봉을 입력해주세요.");return;} document.getElementById('totalPay').classList.toggle('salary-masked'); }
@@ -482,7 +488,13 @@ function renderTable(){
     tr.className=`week-row-${weekNum}`;
     tr.dataset.day=d;
     if(isWE) tr.classList.add('weekend');
-    tr.innerHTML=`<td>${d}(${dow})</td><td><input type="text" class="time-input in-time" value="${rs.in}" oninput="autoFormat(this);autoSaveRow(${d});"></td><td><input type="text" class="time-input out-time" value="${rs.out}" oninput="autoFormat(this);autoSaveRow(${d});"></td><td><button onclick="openBreakModal(${d})" style="background:none;border:1px solid var(--border);color:var(--text-sub);cursor:pointer;border-radius:4px;">⚙️</button></td><td class="res-break">0h 0m</td><td class="res-over">0h 0m</td><td class="res-night">0h 0m</td><td style="font-weight:bold"><span class="res-final" data-mins="0" data-over="0" data-night="0">0h 0m</span></td><td><div style="position:relative;"><button class="btn-plus" onclick="togglePayDetail(${d})">+</button><div id="payBox-${d}" class="pay-detail-box"></div></div></td><td style="background:rgba(255,255,255,.02);"></td>`;
+    
+    // [수정됨] 입력 중에는 UI만 업데이트하고, 입력이 완전히 끝났을 때(onchange)에만 서버에 저장하도록 분리
+    tr.innerHTML=`<td>${d}(${dow})</td>
+    <td><input type="text" class="time-input in-time" inputmode="numeric" value="${rs.in}" oninput="autoFormat(this);calculateRow(this.closest('tr'));" onchange="autoSaveRow(${d});"></td>
+    <td><input type="text" class="time-input out-time" inputmode="numeric" value="${rs.out}" oninput="autoFormat(this);calculateRow(this.closest('tr'));" onchange="autoSaveRow(${d});"></td>
+    <td><button onclick="openBreakModal(${d})" style="background:none;border:1px solid var(--border);color:var(--text-sub);cursor:pointer;border-radius:4px;">⚙️</button></td><td class="res-break">0h 0m</td><td class="res-over">0h 0m</td><td class="res-night">0h 0m</td><td style="font-weight:bold"><span class="res-final" data-mins="0" data-over="0" data-night="0">0h 0m</span></td><td><div style="position:relative;"><button class="btn-plus" onclick="togglePayDetail(${d})">+</button><div id="payBox-${d}" class="pay-detail-box"></div></div></td><td style="background:rgba(255,255,255,.02);"></td>`;
+    
     tbody.appendChild(tr);
     calculateRow(tr);
   }
@@ -580,7 +592,7 @@ function toggleWeeklyPayDetail(w,e){ e.stopPropagation(); if(!hourlyRate){showTo
 function togglePayDetail(d){ if(!hourlyRate){showToast("⚙️ 설정에서 연봉을 입력해주세요.");return;} const b=document.getElementById(`payBox-${d}`); const v=b.style.display==='block'; document.querySelectorAll('.pay-detail-box').forEach(x=>x.style.display='none'); b.style.display=v?'none':'block'; }
 let editDay=null;
 function openBreakModal(d){editDay=d;document.getElementById('breakInputList').innerHTML='';if(!dayData[d])dayData[d]=[];dayData[d].forEach(b=>addBreakRow(b.start,b.end));if(!dayData[d].length)addBreakRow();document.getElementById('breakModal').style.display='block';}
-function addBreakRow(s='',e=''){const d=document.createElement('div');d.style.marginBottom='5px';d.innerHTML=`<input type="text" class="time-input b-s" value="${s}" oninput="autoFormat(this)"> ~ <input type="text" class="time-input b-e" value="${e}" oninput="autoFormat(this)"> <button onclick="this.parentElement.remove()" style="color:red;border:none;background:none;cursor:pointer;font-weight:bold;">X</button>`;document.getElementById('breakInputList').appendChild(d);}
+function addBreakRow(s='',e=''){const d=document.createElement('div');d.style.marginBottom='5px';d.innerHTML=`<input type="text" class="time-input b-s" inputmode="numeric" value="${s}" oninput="autoFormat(this)"> ~ <input type="text" class="time-input b-e" inputmode="numeric" value="${e}" oninput="autoFormat(this)"> <button onclick="this.parentElement.remove()" style="color:red;border:none;background:none;cursor:pointer;font-weight:bold;">X</button>`;document.getElementById('breakInputList').appendChild(d);}
 function closeModal(){document.getElementById('breakModal').style.display='none';}
 function applyBreaks(){dayData[editDay]=[];document.querySelectorAll('#breakInputList div').forEach(d=>{const s=d.querySelector('.b-s').value,e=d.querySelector('.b-e').value;if(s&&e)dayData[editDay].push({start:s,end:e});});closeModal();autoSaveRow(editDay);}
 
@@ -680,6 +692,7 @@ function buildCal(data){
       const lP=document.createElement('span');lP.className='cal-row-label lbl-plan';lP.textContent='계획';
       const iP=document.createElement('input');
       iP.type='text';iP.maxLength=4;iP.placeholder='0000';
+      iP.inputMode='numeric'; // 모바일 최적화 키보드
       iP.className='cal-inp'+(planM>0?' plan-f':'');
       iP.value=planM>0?minsBack(planM):'';
       rP.appendChild(lP);rP.appendChild(iP);cell.appendChild(rP);
@@ -688,6 +701,7 @@ function buildCal(data){
       const lA=document.createElement('span');lA.className='cal-row-label lbl-act';lA.textContent='실적';
       const iA=document.createElement('input');
       iA.type='text';iA.maxLength=4;iA.placeholder='0000';
+      iA.inputMode='numeric'; // 모바일 최적화 키보드
       iA.className='cal-inp'+(actM>0?' act-f':'');
       iA.value=actM>0?minsBack(actM):'';
       rA.appendChild(lA);rA.appendChild(iA);cell.appendChild(rA);
